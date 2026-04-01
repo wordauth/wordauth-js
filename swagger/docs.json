@@ -1,0 +1,342 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "WordOTP Service",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/v1/generate": {
+            "post": {
+                "summary": "Generate",
+                "description": "Generate a one-time passphrase composed of two random words.\n\nAuthentication: Requires a valid API key via the `X-API-Key` header.\nPermissions: Caller must have one of the permissions in\n`GENERATE_PERMISSIONS` (e.g. `otp.generate`).\n\nRequest body (GenerateRequest):\n- session_id (optional): string to associate OTP with a caller session\n- ttl_seconds (optional): override for the OTP expiry in seconds. dafualt (300s)\n- phone (optional): phone number to send OTP via SMS\n- email (optional): email address to send OTP via email\n\nResponse (GenerateResponse):\n- otp_id: UUID string identifying the OTP (store this to validate)\n- code: the two-word passphrase (client should show/use this)\n- expires_at: timestamp when the OTP expires\n\nNote: SMS and email delivery are optional features. The OTP is always\ngenerated and returned in the response. Delivery attempts are logged\nbut do not affect the response.",
+                "operationId": "generate_v1_generate_post",
+                "parameters": [
+                    {
+                        "name": "x-api-key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "API key for authentication",
+                            "title": "X-Api-Key"
+                        },
+                        "description": "API key for authentication"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GenerateRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenerateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/validate": {
+            "post": {
+                "summary": "Validate",
+                "description": "Validate a previously-generated one-time passphrase.\n\nAuthentication: Requires a valid API key via the `X-API-Key` header.\nPermissions: Caller must have one of the permissions in\n`VALIDATE_PERMISSIONS` (e.g. `otp.verify`).\n\nRequest body (ValidateRequest):\n- otp_id (optional): the UUID returned from /v1/generate\n- session_id (optional): alternative to otp_id for session-based validation\n- code (required): the two-word passphrase to verify\n\nResponse (ValidateResponse):\n- valid: boolean indicating whether the code was accepted\n- message: optional error message when valid is false",
+                "operationId": "validate_v1_validate_post",
+                "parameters": [
+                    {
+                        "name": "x-api-key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "API key for authentication",
+                            "title": "X-Api-Key"
+                        },
+                        "description": "API key for authentication"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/healthz": {
+            "get": {
+                "summary": "Healthz",
+                "description": "Health check endpoint used by load balancers and container platforms.\n\nReturns a small JSON payload indicating service health. This endpoint\nintentionally performs no database checks so it can be used as a quick\nliveness probe.",
+                "operationId": "healthz_healthz_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/": {
+            "get": {
+                "summary": "Route Home",
+                "description": "Redirect the root path to the public project homepage or documentation.\nThis keeps / reserved for redirects and prevents accidental exposure of\ninternal information at the root path.",
+                "operationId": "route_home__get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "GenerateRequest": {
+                "properties": {
+                    "session_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Session Id"
+                    },
+                    "ttl_seconds": {
+                        "type": "integer",
+                        "title": "Ttl Seconds",
+                        "default": 300
+                    },
+                    "email": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Email"
+                    },
+                    "phone": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Phone"
+                    }
+                },
+                "type": "object",
+                "title": "GenerateRequest"
+            },
+            "GenerateResponse": {
+                "properties": {
+                    "otp_id": {
+                        "type": "string",
+                        "title": "Otp Id"
+                    },
+                    "code": {
+                        "type": "string",
+                        "title": "Code"
+                    },
+                    "session_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Session Id"
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Expires At"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "otp_id",
+                    "code",
+                    "expires_at"
+                ],
+                "title": "GenerateResponse"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "ValidateRequest": {
+                "properties": {
+                    "otp_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Otp Id"
+                    },
+                    "session_id": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Session Id"
+                    },
+                    "code": {
+                        "type": "string",
+                        "title": "Code"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "code"
+                ],
+                "title": "ValidateRequest"
+            },
+            "ValidateResponse": {
+                "properties": {
+                    "valid": {
+                        "type": "boolean",
+                        "title": "Valid"
+                    },
+                    "message": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Message"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "valid"
+                ],
+                "title": "ValidateResponse"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    },
+                    "input": {
+                        "title": "Input"
+                    },
+                    "ctx": {
+                        "type": "object",
+                        "title": "Context"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    }
+}

@@ -4,6 +4,13 @@ export interface WordAuthOptions {
   baseUrl?: string;
 }
 
+export interface GenerateRequest {
+  session_id?: string | null;
+  ttl_seconds?: number;
+  email?: string | null;
+  phone?: string | null;
+}
+
 export interface GenerateResponse {
   otp_id: string;
   code: string;
@@ -12,13 +19,14 @@ export interface GenerateResponse {
 }
 
 export interface ValidateRequest {
-  otp_id: string;
+  otp_id?: string | null;
+  session_id?: string | null;
   code: string;
 }
 
 export interface ValidateResponse {
   valid: boolean;
-  otp_id: string;
+  message?: string | null;
 }
 
 export interface WordAuthErrorResponse {

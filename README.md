@@ -52,20 +52,49 @@ const wordauth = new WordAuth({
 | `apiKey`  | `string` | Yes      | Your WordAuth API key                                |
 | `baseUrl` | `string` | No       | Override the API base URL (default: `https://api.wordauth.com`) |
 
-### `wordauth.generate()`
+### `wordauth.generate(params?)`
 
 Generate a new word pair for verification.
+
+**Parameters:**
+
+| Param         | Type     | Required | Description                                      |
+| ------------- | -------- | -------- | ------------------------------------------------ |
+| `session_id`  | `string` | No       | Associate the OTP with a caller session          |
+| `ttl_seconds` | `number` | No       | Override OTP expiry in seconds (default: `300`)  |
+| `email`       | `string` | No       | Send the OTP to this email address               |
+| `phone`       | `string` | No       | Send the OTP to this phone number via SMS        |
 
 **Returns:** `Promise<GenerateResponse>`
 
 ```typescript
 interface GenerateResponse {
-  otp_id: string;       // Unique identifier for this OTP
-  code: string;         // The word pair (e.g. "happening holiday")
+  otp_id: string;            // Unique identifier for this OTP
+  code: string;              // The word pair (e.g. "happening holiday")
   session_id: string | null;
-  expires_at: string;   // ISO 8601 expiration timestamp
+  expires_at: string;        // ISO 8601 expiration timestamp
 }
 ```
+
+### `wordauth.generateWithEmail(email, params?)`
+
+Generate a word pair and deliver it to the given email address.
+
+```typescript
+const { otp_id, code } = await wordauth.generateWithEmail("user@example.com");
+```
+
+Accepts the same optional `params` as `generate()`, excluding `email`.
+
+### `wordauth.generateWithSMS(phone, params?)`
+
+Generate a word pair and deliver it via SMS to the given phone number.
+
+```typescript
+const { otp_id, code } = await wordauth.generateWithSMS("+15550001234");
+```
+
+Accepts the same optional `params` as `generate()`, excluding `phone`.
 
 ### `wordauth.validate(params)`
 
@@ -73,17 +102,18 @@ Validate a word pair against an OTP session.
 
 **Parameters:**
 
-| Param    | Type     | Description                        |
-| -------- | -------- | ---------------------------------- |
-| `otp_id` | `string` | The OTP ID from `generate()`      |
-| `code`   | `string` | The word pair entered by the user  |
+| Param        | Type     | Required | Description                               |
+| ------------ | -------- | -------- | ----------------------------------------- |
+| `code`       | `string` | Yes      | The word pair entered by the user         |
+| `otp_id`     | `string` | No       | The OTP ID returned from `generate()`     |
+| `session_id` | `string` | No       | Alternative to `otp_id` for session-based validation |
 
 **Returns:** `Promise<ValidateResponse>`
 
 ```typescript
 interface ValidateResponse {
   valid: boolean;
-  otp_id: string;
+  message?: string | null;  // Error message when valid is false
 }
 ```
 

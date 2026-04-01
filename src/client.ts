@@ -1,6 +1,7 @@
 import { WordAuthError } from "./errors";
 import type {
   WordAuthOptions,
+  GenerateRequest,
   GenerateResponse,
   ValidateRequest,
   ValidateResponse,
@@ -26,24 +27,35 @@ export class WordAuth {
     }
   }
 
-  async generate(): Promise<GenerateResponse> {
+  async generate(params: GenerateRequest = {}): Promise<GenerateResponse> {
     return this.request<GenerateResponse>("/v1/generate", {
       method: "POST",
-      body: JSON.stringify({}),
+      body: JSON.stringify(params),
     });
   }
 
+  async generateWithEmail(
+    email: string,
+    params: Omit<GenerateRequest, "email"> = {},
+  ): Promise<GenerateResponse> {
+    return this.generate({ ...params, email });
+  }
+
+  async generateWithSMS(
+    phone: string,
+    params: Omit<GenerateRequest, "phone"> = {},
+  ): Promise<GenerateResponse> {
+    return this.generate({ ...params, phone });
+  }
+
   async validate(params: ValidateRequest): Promise<ValidateResponse> {
-    if (!params.otp_id || !params.code) {
-      throw new WordAuthError("otp_id and code are required", 0);
+    if (!params.code) {
+      throw new WordAuthError("code is required", 0);
     }
 
     return this.request<ValidateResponse>("/v1/validate", {
       method: "POST",
-      body: JSON.stringify({
-        otp_id: params.otp_id,
-        code: params.code,
-      }),
+      body: JSON.stringify(params),
     });
   }
 

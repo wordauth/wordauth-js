@@ -68,6 +68,26 @@ describe("WordAuth.generate()", () => {
     );
   });
 
+  it("passes params to the request body", async () => {
+    const mockResponse = {
+      otp_id: "abc-123",
+      code: "happy cloud",
+      session_id: "sess-1",
+      expires_at: "2026-03-11T02:50:46.700343Z",
+    };
+    global.fetch = mockFetch(mockResponse);
+
+    const client = new WordAuth(MOCK_API_KEY);
+    await client.generate({ session_id: "sess-1", ttl_seconds: 600 });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.wordauth.com/v1/generate",
+      expect.objectContaining({
+        body: JSON.stringify({ session_id: "sess-1", ttl_seconds: 600 }),
+      }),
+    );
+  });
+
   it("uses custom base URL", async () => {
     const mockResponse = {
       otp_id: "abc-123",
@@ -114,9 +134,109 @@ describe("WordAuth.generate()", () => {
   });
 });
 
+describe("WordAuth.generateWithEmail()", () => {
+  it("sends the email field in the request body", async () => {
+    const mockResponse = {
+      otp_id: "abc-123",
+      code: "happy cloud",
+      session_id: null,
+      expires_at: "2026-03-11T02:50:46.700343Z",
+    };
+    global.fetch = mockFetch(mockResponse);
+
+    const client = new WordAuth(MOCK_API_KEY);
+    const result = await client.generateWithEmail("user@example.com");
+
+    expect(result).toEqual(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.wordauth.com/v1/generate",
+      expect.objectContaining({
+        body: JSON.stringify({ email: "user@example.com" }),
+      }),
+    );
+  });
+
+  it("merges extra params alongside the email", async () => {
+    const mockResponse = {
+      otp_id: "abc-123",
+      code: "happy cloud",
+      session_id: "sess-1",
+      expires_at: "2026-03-11T02:50:46.700343Z",
+    };
+    global.fetch = mockFetch(mockResponse);
+
+    const client = new WordAuth(MOCK_API_KEY);
+    await client.generateWithEmail("user@example.com", {
+      session_id: "sess-1",
+      ttl_seconds: 600,
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.wordauth.com/v1/generate",
+      expect.objectContaining({
+        body: JSON.stringify({
+          session_id: "sess-1",
+          ttl_seconds: 600,
+          email: "user@example.com",
+        }),
+      }),
+    );
+  });
+});
+
+describe("WordAuth.generateWithSMS()", () => {
+  it("sends the phone field in the request body", async () => {
+    const mockResponse = {
+      otp_id: "abc-123",
+      code: "happy cloud",
+      session_id: null,
+      expires_at: "2026-03-11T02:50:46.700343Z",
+    };
+    global.fetch = mockFetch(mockResponse);
+
+    const client = new WordAuth(MOCK_API_KEY);
+    const result = await client.generateWithSMS("+15550001234");
+
+    expect(result).toEqual(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.wordauth.com/v1/generate",
+      expect.objectContaining({
+        body: JSON.stringify({ phone: "+15550001234" }),
+      }),
+    );
+  });
+
+  it("merges extra params alongside the phone", async () => {
+    const mockResponse = {
+      otp_id: "abc-123",
+      code: "happy cloud",
+      session_id: "sess-2",
+      expires_at: "2026-03-11T02:50:46.700343Z",
+    };
+    global.fetch = mockFetch(mockResponse);
+
+    const client = new WordAuth(MOCK_API_KEY);
+    await client.generateWithSMS("+15550001234", {
+      session_id: "sess-2",
+      ttl_seconds: 120,
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.wordauth.com/v1/generate",
+      expect.objectContaining({
+        body: JSON.stringify({
+          session_id: "sess-2",
+          ttl_seconds: 120,
+          phone: "+15550001234",
+        }),
+      }),
+    );
+  });
+});
+
 describe("WordAuth.validate()", () => {
   it("returns validation result for a valid pair", async () => {
-    const mockResponse = { valid: true, otp_id: "abc-123" };
+    const mockResponse = { valid: true };
     global.fetch = mockFetch(mockResponse);
 
     const client = new WordAuth(MOCK_API_KEY);
@@ -139,7 +259,7 @@ describe("WordAuth.validate()", () => {
   });
 
   it("returns validation result for an invalid pair", async () => {
-    const mockResponse = { valid: false, otp_id: "abc-123" };
+    const mockResponse = { valid: false, message: "OTP not found" };
     global.fetch = mockFetch(mockResponse);
 
     const client = new WordAuth(MOCK_API_KEY);
@@ -149,14 +269,6 @@ describe("WordAuth.validate()", () => {
     });
 
     expect(result.valid).toBe(false);
-  });
-
-  it("throws WordAuthError when otp_id is missing", async () => {
-    const client = new WordAuth(MOCK_API_KEY);
-
-    await expect(
-      client.validate({ otp_id: "", code: "some code" }),
-    ).rejects.toThrow(WordAuthError);
   });
 
   it("throws WordAuthError when code is missing", async () => {
