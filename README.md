@@ -1,6 +1,6 @@
 # wordauth
 
-Official JavaScript/TypeScript client for the [WordAuth](https://wordauth.com) API.
+Official JavaScript/TypeScript client for the [WordAuth OS](https://os.wordauth.com) API.
 
 ## Install
 
@@ -13,134 +13,143 @@ npm install wordauth
 ```typescript
 import { WordAuth } from "wordauth";
 
-const wordauth = new WordAuth("sk_live_your_api_key");
+const wordauth = new WordAuth({
+  apiKey: "sk_live_your_api_key",
+  subOrgId: "your-sub-org-id", // required for org-wide keys
+});
 
-// Generate a word pair
-const { otp_id, code, expires_at } = await wordauth.generate();
-console.log(`Word pair: ${code}`); // e.g. "happening holiday"
+// End-user login with OTP
+const { otp_id } = await wordauth.auth.login.otp.send({
+  email: "user@example.com",
+});
 
-// Validate user input
-const result = await wordauth.validate({ otp_id, code: userInput });
-if (result.valid) {
-  console.log("Verified!");
-}
+const { session } = await wordauth.auth.login.otp.verify({
+  email: "user@example.com",
+  otp_id,
+  code: "happening holiday",
+});
+
+console.log(session.access_token);
+
+// Legacy OTP primitives (generate + validate word pairs)
+const { otp_id: id, code } = await wordauth.otp.generate();
+const result = await wordauth.otp.validate({ otp_id: id, code: userInput });
 ```
 
-## API Reference
-
-### `new WordAuth(apiKey)`
-
-Create a client with an API key string.
-
-```typescript
-const wordauth = new WordAuth("sk_live_...");
-```
-
-### `new WordAuth(options)`
-
-Create a client with an options object.
+## Configuration
 
 ```typescript
 const wordauth = new WordAuth({
   apiKey: "sk_live_...",
-  baseUrl: "https://custom-api.example.com", // optional
+  baseUrl: "https://os.wordauth.com", // default
+  subOrgId: "sub-org-uuid", // default for org-wide API keys
 });
 ```
 
-| Option    | Type     | Required | Description                                          |
-| --------- | -------- | -------- | ---------------------------------------------------- |
-| `apiKey`  | `string` | Yes      | Your WordAuth API key                                |
-| `baseUrl` | `string` | No       | Override the API base URL (default: `https://api.wordauth.com`) |
+| Option      | Type     | Required | Description |
+| ----------- | -------- | -------- | ----------- |
+| `apiKey`    | `string` | Yes      | Your WordAuth API key |
+| `baseUrl`   | `string` | No       | API root URL (default: `https://os.wordauth.com`) |
+| `subOrgId`  | `string` | No       | Default sub-organization for org-wide keys |
 
-### `wordauth.generate(params?)`
+All requests are sent to `{baseUrl}/api/v1/...`.
 
-Generate a new word pair for verification.
+## Auth API
 
-**Parameters:**
-
-| Param         | Type     | Required | Description                                      |
-| ------------- | -------- | -------- | ------------------------------------------------ |
-| `session_id`  | `string` | No       | Associate the OTP with a caller session          |
-| `ttl_seconds` | `number` | No       | Override OTP expiry in seconds (default: `300`)  |
-| `email`       | `string` | No       | Send the OTP to this email address               |
-| `phone`       | `string` | No       | Send the OTP to this phone number via SMS        |
-
-**Returns:** `Promise<GenerateResponse>`
+Discover enabled methods and run end-user login/signup flows.
 
 ```typescript
-interface GenerateResponse {
-  otp_id: string;            // Unique identifier for this OTP
-  code: string;              // The word pair (e.g. "happening holiday")
-  session_id: string | null;
-  expires_at: string;        // ISO 8601 expiration timestamp
-}
+// List enabled auth methods for a sub-org
+const { methods } = await wordauth.auth.methods({ subOrgId: "..." });
+
+// Password login
+const { session } = await wordauth.auth.login.password({
+  email: "user@example.com",
+  password: "secret",
+});
+
+// Magic link
+await wordauth.auth.login.magicLink.send({ email: "user@example.com" });
+const { session } = await wordauth.auth.login.magicLink.verify({
+  email: "user@example.com",
+  token_hash: "...",
+});
+
+// Passkey login
+const { options, challengeId } = await wordauth.auth.login.passkey.options({
+  email: "user@example.com",
+});
+const { session } = await wordauth.auth.login.passkey.verify({
+  email: "user@example.com",
+  challengeId,
+  credential: webAuthnCredential,
+});
+
+// Social / SSO (returns authorization URL for browser redirect)
+const { authorization_url } = await wordauth.auth.login.social.start({
+  provider: "google",
+  redirectUri: "https://yourapp.com/callback",
+});
+
+// Signup
+const { session } = await wordauth.auth.signup.password({
+  email: "new@example.com",
+  password: "secret",
+  openSignup: true,
+});
 ```
 
-### `wordauth.generateWithEmail(email, params?)`
+Browser OAuth/SSO callbacks (`/api/v1/auth/login/social/callback`, etc.) are handled via redirect — no SDK method needed.
 
-Generate a word pair and deliver it to the given email address.
+## OTP
+
+Low-level word-pair OTP generation and validation, plus settings management.
 
 ```typescript
-const { otp_id, code } = await wordauth.generateWithEmail("user@example.com");
+await wordauth.otp.generate({ ttl_seconds: 300 });
+await wordauth.otp.generateWithEmail("user@example.com");
+await wordauth.otp.generateWithSMS("+15550001234");
+await wordauth.otp.validate({ otp_id, code: "red bird" });
+await wordauth.otp.getSettings();
+await wordauth.otp.updateSettings({ mode: "phrase", ttl_seconds: 600 });
 ```
 
-Accepts the same optional `params` as `generate()`, excluding `email`.
+## OS Management
 
-### `wordauth.generateWithSMS(phone, params?)`
+| Resource | Property | Description |
+| -------- | -------- | ----------- |
+| Sessions | `wordauth.sessions` | List and revoke user sessions |
+| Users | `wordauth.users` | Directory user CRUD |
+| Webhooks | `wordauth.webhooks` | Webhook endpoint management |
+| SSO | `wordauth.sso` | SSO connection admin |
+| Social | `wordauth.social` | Social provider config |
+| MFA | `wordauth.mfa` | MFA policy |
+| Passkeys | `wordauth.passkeys` | WebAuthn credential admin |
+| Admin portal | `wordauth.adminPortal` | Branding and domains |
+| Sub-orgs | `wordauth.subOrganizations` | Sub-organization management |
+| Members | `wordauth.members` | Organization member admin |
+| Apps | `wordauth.organizationApps` | Enabled apps and sidebar layout |
+| RBAC | `wordauth.rbac` | Roles, member roles, environments |
+| Audit logs | `wordauth.auditLogs` | Audit event listing |
+| SCIM | `wordauth.scim` | SCIM provisioning config |
 
-Generate a word pair and deliver it via SMS to the given phone number.
+## Backward Compatibility
 
-```typescript
-const { otp_id, code } = await wordauth.generateWithSMS("+15550001234");
-```
-
-Accepts the same optional `params` as `generate()`, excluding `phone`.
-
-### `wordauth.validate(params)`
-
-Validate a word pair against an OTP session.
-
-**Parameters:**
-
-| Param        | Type     | Required | Description                               |
-| ------------ | -------- | -------- | ----------------------------------------- |
-| `code`       | `string` | Yes      | The word pair entered by the user         |
-| `otp_id`     | `string` | No       | The OTP ID returned from `generate()`     |
-| `session_id` | `string` | No       | Alternative to `otp_id` for session-based validation |
-
-**Returns:** `Promise<ValidateResponse>`
-
-```typescript
-interface ValidateResponse {
-  valid: boolean;
-  message?: string | null;  // Error message when valid is false
-}
-```
+Top-level `generate()`, `validate()`, `generateWithEmail()`, and `generateWithSMS()` still work but are deprecated. They now target `https://os.wordauth.com/api/v1/otp/*`.
 
 ## Error Handling
-
-All API errors throw a `WordAuthError` with `message` and `status` properties.
 
 ```typescript
 import { WordAuth, WordAuthError } from "wordauth";
 
 try {
-  const result = await wordauth.generate();
+  await wordauth.auth.login.password({ email, password });
 } catch (err) {
   if (err instanceof WordAuthError) {
     console.error(`API error ${err.status}: ${err.message}`);
   }
 }
 ```
-
-| Status | Meaning               |
-| ------ | --------------------- |
-| `0`    | Network/client error  |
-| `400`  | Bad request           |
-| `403`  | Invalid API key       |
-| `410`  | OTP expired           |
-| `429`  | Rate limit exceeded   |
-| `500`  | Server error          |
 
 ## Requirements
 

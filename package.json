@@ -1,7 +1,7 @@
 {
   "name": "wordauth",
-  "version": "0.1.1",
-  "description": "Official JavaScript/TypeScript client for the WordAuth API",
+  "version": "0.2.0",
+  "description": "Official JavaScript/TypeScript client for the WordAuth OS API",
   "author": "WordAuth",
   "license": "MIT",
   "type": "module",
@@ -42,7 +42,10 @@
     "otp",
     "word-pair",
     "2fa",
-    "verification"
+    "verification",
+    "sso",
+    "passkeys",
+    "magic-link"
   ],
   "engines": {
     "node": ">=18.0.0"
